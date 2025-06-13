@@ -31,9 +31,9 @@ The host application embeds the [Wasmtime](https://github.com/bytecodealliance/w
 
 ## Dependencies
 
-- [wasi-sdk](https://github.com/WebAssembly/wasi-sdk) for building C plugin
-- [NodeJS](https://nodejs.org/en/download) for building JS plugin
-- [ComponentizeJS](https://github.com/bytecodealliance/ComponentizeJS) for building JS plugin
+- [wasi-sdk](https://github.com/WebAssembly/wasi-sdk) for building the C plugin
+- [NodeJS](https://nodejs.org/en/download) for building the JS plugin
+- [ComponentizeJS](https://github.com/bytecodealliance/ComponentizeJS) for building the JS plugin
 - [Rust](https://www.rust-lang.org/tools/install) for building host application
 
 ## Running
