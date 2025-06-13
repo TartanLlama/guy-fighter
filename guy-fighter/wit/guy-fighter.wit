@@ -1,0 +1,24 @@
+package tl:guy-fighter;
+
+interface guy-fighter-host {
+    record type-of-guy {
+        name: string,
+        strength: u8,
+        charisma: u8,
+        agility: u8,
+    }
+    invent-entirely-new-type-of-guy: func(guy-type: type-of-guy);
+}
+
+world guy-fighter {
+    export guy-fighter-host;
+}
+
+world guy-fighter-plugin {
+    import guy-fighter-host;
+    export init: func();
+    export get-plugin-name: func() -> string;
+}
+
+
+

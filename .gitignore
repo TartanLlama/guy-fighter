@@ -1,0 +1,5 @@
+js-plugin/build/*
+c-plugin/build/*
+c-plugin/gen/*
+guy-fighter-install/*
+guy-fighter/target

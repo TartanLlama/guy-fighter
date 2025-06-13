@@ -1,0 +1,11 @@
+[package]
+name = "guy-fighter"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+wasmtime = "33.0.0"
+clap = { version = "4.5.40", features = ["derive"] }
+rustyline = "16.0.0"
+unicode-width = "0.2.1"
+rand = "0.8"
