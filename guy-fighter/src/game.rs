@@ -1,6 +1,7 @@
 use rand::Rng;
 use rustyline::DefaultEditor;
 use rustyline::error::ReadlineError;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -19,13 +20,25 @@ pub use tl::guy_fighter::guy_fighter_host::TypeOfGuy;
 
 pub type PluginId = usize;
 
-// Host state that is shared across plugins and the main game loop.
-pub struct HostState {
+pub struct GameState {
     pub builtin_types_of_guy: Vec<TypeOfGuy>,
-    pub invented_types_of_guy: Vec<(PluginId, TypeOfGuy)>,
+    pub invented_types_of_guy: RefCell<Vec<(PluginId, TypeOfGuy)>>,
     pub plugin_descs: HashMap<PluginId, PluginDesc>,
     pub next_plugin_id: PluginId,
-    pub executing_plugin_id: Option<PluginId>,
+}
+
+struct PluginState<'a> {
+    plugin_id: PluginId,
+    game_state: &'a GameState,
+}
+
+impl<'a> PluginState<'a> {
+    pub fn new(id: PluginId, state: &'a GameState) -> Self {
+        PluginState {
+            plugin_id: id,
+            game_state: state,
+        }
+    }
 }
 
 pub struct PluginDesc {
@@ -39,10 +52,9 @@ impl PluginDesc {
     }
 }
 
-pub fn load_plugins(plugins_dir: &Path) -> wasmtime::Result<Store<HostState>> {
+pub fn load_plugins(state: &mut GameState, plugins_dir: &Path) -> wasmtime::Result<()> {
     let engine = Engine::default();
     let mut linker = Linker::new(&engine);
-    let mut store = Store::new(&engine, HostState::new());
     GuyFighterPlugin::add_to_linker(&mut linker, |state| state)?;
 
     // Load all the plugins from the specified directory
@@ -53,22 +65,19 @@ pub fn load_plugins(plugins_dir: &Path) -> wasmtime::Result<Store<HostState>> {
 
             if path.is_file() {
                 let component = Component::from_file(&engine, &path)?;
-                let plugin = GuyFighterPlugin::instantiate(&mut store, &component, &linker)?;
 
-                let plugin_id = store.data().next_plugin_id;
-                store.data_mut().next_plugin_id += 1;
+                let plugin_id = state.next_plugin_id;
+                state.next_plugin_id += 1;
 
-                // Call the plugin's init and get its name, setting the executing_plugin_id so that
-                // host functions the plugin calls know where the call came from. This is kinda icky;
-                // maybe there's a way to bind the plugin's ID to the instance?
-                store.data_mut().executing_plugin_id = Some(plugin_id);
-                plugin.call_init(&mut store)?;
-                let plugin_name = plugin.call_get_plugin_name(&mut store)?;
-                store.data_mut().executing_plugin_id = None;
+                let plugin_name = {
+                    let mut store = Store::new(&engine, PluginState::new(plugin_id, &state));
+                    let plugin = GuyFighterPlugin::instantiate(&mut store, &component, &linker)?;
+                    plugin.call_init(&mut store)?;
+                    plugin.call_get_plugin_name(&mut store)?
+                };
 
                 // Insert the plugin description into the store's state
-                store
-                    .data_mut()
+                state
                     .plugin_descs
                     .insert(plugin_id, PluginDesc::new(plugin_name, path.clone()));
             }
@@ -76,7 +85,7 @@ pub fn load_plugins(plugins_dir: &Path) -> wasmtime::Result<Store<HostState>> {
     } else {
         return Err(wasmtime::Error::msg("Plugins directory does not exist"));
     }
-    Ok(store)
+    Ok(())
 }
 
 impl TypeOfGuy {
@@ -90,9 +99,9 @@ impl TypeOfGuy {
     }
 }
 
-impl HostState {
+impl GameState {
     pub fn new() -> Self {
-        HostState {
+        GameState {
             builtin_types_of_guy: vec![
                 TypeOfGuy::new("Guy who's made of nails".to_string(), 18, 0, 0),
                 TypeOfGuy::new(
@@ -103,19 +112,20 @@ impl HostState {
                     4,
                 ),
             ],
-            invented_types_of_guy: vec![],
+            invented_types_of_guy: RefCell::new(vec![]),
             plugin_descs: HashMap::new(),
             next_plugin_id: 1,
-            executing_plugin_id: None,
         }
     }
 }
 
-impl tl::guy_fighter::guy_fighter_host::Host for HostState {
+impl tl::guy_fighter::guy_fighter_host::Host for PluginState<'_> {
     fn invent_entirely_new_type_of_guy(&mut self, guy_type: TypeOfGuy) -> () {
         // We retrieve the current plugin ID from the state, which tells us which plugin invented this type of guy.
-        let plugin_id = self.executing_plugin_id.unwrap_or(0);
-        self.invented_types_of_guy.push((plugin_id, guy_type));
+        self.game_state
+            .invented_types_of_guy
+            .borrow_mut()
+            .push((self.plugin_id, guy_type));
     }
 }
 
@@ -131,12 +141,12 @@ impl<'a> Guy<'a> {
     }
 }
 
-fn select_random_guy_type(state: &HostState) -> &TypeOfGuy {
+fn select_random_guy_type(state: &GameState) -> TypeOfGuy {
     let mut rng = rand::thread_rng();
 
     // Get total number of guy types
     let builtin_count = state.builtin_types_of_guy.len();
-    let invented_count = state.invented_types_of_guy.len();
+    let invented_count = state.invented_types_of_guy.borrow().len();
     let total_count = builtin_count + invented_count;
 
     // Generate a single random index for all types
@@ -144,10 +154,12 @@ fn select_random_guy_type(state: &HostState) -> &TypeOfGuy {
 
     if idx < builtin_count {
         // Select from builtin types
-        &state.builtin_types_of_guy[idx]
+        state.builtin_types_of_guy[idx].clone()
     } else {
         // Select from invented types
-        &state.invented_types_of_guy[idx - builtin_count].1
+        state.invented_types_of_guy.borrow()[idx - builtin_count]
+            .1
+            .clone()
     }
 }
 
@@ -201,13 +213,13 @@ fn fight_round(guy1: &Guy, guy2: &Guy, round: u8) -> bool {
     guy1_wins
 }
 
-fn fight(state: &HostState) {
+fn fight(state: &GameState) {
     // Generate two random fighters
     let guy_type1 = select_random_guy_type(state);
     let guy_type2 = select_random_guy_type(state);
 
-    let guy1 = Guy::new(names::generate_name(), guy_type1);
-    let guy2 = Guy::new(names::generate_name(), guy_type2);
+    let guy1 = Guy::new(names::generate_name(), &guy_type1);
+    let guy2 = Guy::new(names::generate_name(), &guy_type2);
 
     let mut guy1_wins = 0;
     let mut guy2_wins = 0;
@@ -231,7 +243,7 @@ fn fight(state: &HostState) {
     }
 }
 
-fn main_loop(store: Store<HostState>) -> rustyline::Result<()> {
+fn main_loop(state: GameState) -> rustyline::Result<()> {
     visualization::print_header();
     visualization::print_menu();
 
@@ -247,9 +259,9 @@ fn main_loop(store: Store<HostState>) -> rustyline::Result<()> {
 
                 match command.as_str() {
                     "quit" => break,
-                    "plugins" => visualization::print_plugins_table(&store),
-                    "types" => visualization::print_guy_types(&store),
-                    "fight" => fight(store.data()),
+                    "plugins" => visualization::print_plugins_table(&state),
+                    "types" => visualization::print_guy_types(&state),
+                    "fight" => fight(&state),
                     "help" => visualization::print_menu(),
                     _ => println!("Unknown command: {}", command),
                 }
@@ -266,9 +278,10 @@ fn main_loop(store: Store<HostState>) -> rustyline::Result<()> {
 }
 
 pub fn run_game(plugins_dir: &Path) -> wasmtime::Result<()> {
-    let store = load_plugins(plugins_dir)?;
+    let mut state = GameState::new();
+    load_plugins(&mut state, plugins_dir)?;
 
-    if let Err(e) = main_loop(store) {
+    if let Err(e) = main_loop(state) {
         return Err(wasmtime::Error::msg(format!("Error in main loop: {:?}", e)));
     }
     Ok(())

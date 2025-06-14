@@ -1,31 +1,31 @@
-use crate::game::{ContestType, Guy, HostState, PluginId, TypeOfGuy};
+use crate::game::{ContestType, Guy, GameState, PluginId, TypeOfGuy};
 use unicode_width::UnicodeWidthStr;
-use wasmtime::Store;
 
 const STRENGTH_EMOJI: &str = "💪";
 const AGILITY_EMOJI: &str = "🏃";
 const CHARISMA_EMOJI: &str = "✨";
 
-fn count_types_for_plugin(host_state: &HostState, plugin_id: PluginId) -> usize {
-    host_state
+fn count_types_for_plugin(state: &GameState, plugin_id: PluginId) -> usize {
+    state
         .invented_types_of_guy
+        .borrow()
         .iter()
         .filter(|(id, _)| *id == plugin_id)
         .count()
 }
 
-pub fn print_plugins_table(store: &Store<HostState>) {
+pub fn print_plugins_table(state: &GameState) {
     println!("\n┌───────────────────────────────────────────────────────────────┐");
     println!("│                         🔌 Plugins 🔌                         │");
     println!("├─────┬─────────────────────┬─────────┬─────────────────────────┤");
     println!("│ ID  │ Name                │ Types   │ File                    │");
     println!("├─────┼─────────────────────┼─────────┼─────────────────────────┤");
 
-    if store.data().plugin_descs.is_empty() {
+    if state.plugin_descs.is_empty() {
         println!("│                     📭 No plugins loaded                      │");
     } else {
-        for (id, desc) in store.data().plugin_descs.iter() {
-            let type_count = count_types_for_plugin(store.data(), *id);
+        for (id, desc) in state.plugin_descs.iter() {
+            let type_count = count_types_for_plugin(state, *id);
             let filename = desc
                 .path
                 .file_name()
@@ -127,18 +127,17 @@ fn print_guy_types_header() {
     println!("{}", "═".repeat(57));
 }
 
-pub fn print_guy_types(store: &Store<HostState>) {
+pub fn print_guy_types(state: &GameState) {
     print_guy_types_header();
 
     // Print builtin types
-    for guy in store.data().builtin_types_of_guy.iter() {
+    for guy in state.builtin_types_of_guy.iter() {
         print_guy_card(guy, "<builtin>");
     }
 
     // Print types from plugins
-    for (plugin_id, guy) in store.data().invented_types_of_guy.iter() {
-        let plugin_name = store
-            .data()
+    for (plugin_id, guy) in state.invented_types_of_guy.borrow().iter() {
+        let plugin_name = state
             .plugin_descs
             .get(&plugin_id)
             .map_or("unknown plugin", |desc| desc.name.as_str());
@@ -265,7 +264,10 @@ pub fn print_fight_introduction(guy1: &Guy, guy2: &Guy) {
 
 pub fn print_winner(winner_name: &str) {
     println!();
-    println!("🎉🏆🎉 {} WINS THE FIGHT! 🎉🏆🎉", winner_name.to_uppercase());
+    println!(
+        "🎉🏆🎉 {} WINS THE FIGHT! 🎉🏆🎉",
+        winner_name.to_uppercase()
+    );
     println!("");
     println!("{}", "═".repeat(50));
 }
