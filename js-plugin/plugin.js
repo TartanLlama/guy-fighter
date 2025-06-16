@@ -6,6 +6,10 @@ export function init() {
         strength: 13,
         agility: 20,
         charisma: 11,
+        battleCries: [
+           "console.log('Time for DEATH!')",
+            "let i_will_destroy_you = true;",
+        ]
     });
 }
 

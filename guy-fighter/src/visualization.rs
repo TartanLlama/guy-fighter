@@ -1,4 +1,5 @@
 use crate::game::{ContestType, Guy, GameState, PluginId, TypeOfGuy};
+use rand::seq::SliceRandom;
 use unicode_width::UnicodeWidthStr;
 
 const STRENGTH_EMOJI: &str = "💪";
@@ -240,6 +241,12 @@ fn print_fight_card(guy: &Guy, corner: &str) {
         guy.guy_type.agility,
         CHARISMA_EMOJI,
         guy.guy_type.charisma
+    );
+    println!(
+        "| Battle cry: {}",
+        guy.guy_type.battle_cries
+            .choose(&mut rand::thread_rng())
+            .map_or("No battle cry", |cry| cry)
     );
     println!("└───────────────────────────────────────────────────┘");
 }

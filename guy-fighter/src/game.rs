@@ -89,12 +89,13 @@ pub fn load_plugins(state: &mut GameState, plugins_dir: &Path) -> wasmtime::Resu
 }
 
 impl TypeOfGuy {
-    fn new(name: String, strength: u8, agility: u8, charisma: u8) -> Self {
+    fn new(name: String, strength: u8, agility: u8, charisma: u8, battle_cries: Vec<String>) -> Self {
         TypeOfGuy {
             name,
             strength,
             agility,
             charisma,
+            battle_cries
         }
     }
 }
@@ -103,13 +104,15 @@ impl GameState {
     pub fn new() -> Self {
         GameState {
             builtin_types_of_guy: vec![
-                TypeOfGuy::new("Guy who's made of nails".to_string(), 18, 0, 0),
+                TypeOfGuy::new("Guy who's made of nails".to_string(), 18, 0, 0, 
+            vec!["Nailed it!".to_string()]),
                 TypeOfGuy::new(
                     "Guy who's made of normal guy stuff, except his hands, which are made of nails"
                         .to_string(),
                     14,
                     6,
                     4,
+                    vec!["Why is life pain?".to_string()],
                 ),
             ],
             invented_types_of_guy: RefCell::new(vec![]),

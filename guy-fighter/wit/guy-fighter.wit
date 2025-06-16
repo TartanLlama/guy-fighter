@@ -6,6 +6,7 @@ interface guy-fighter-host {
         strength: u8,
         charisma: u8,
         agility: u8,
+        battle-cries: list<string>,
     }
     invent-entirely-new-type-of-guy: func(guy-type: type-of-guy);
 }
