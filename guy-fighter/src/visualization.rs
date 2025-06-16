@@ -1,58 +1,10 @@
-use crate::game::{ContestType, Guy, GameState, PluginId, TypeOfGuy};
+use crate::game::{ContestType, Guy, GameState, TypeOfGuy};
 use rand::seq::SliceRandom;
 use unicode_width::UnicodeWidthStr;
 
 const STRENGTH_EMOJI: &str = "💪";
 const AGILITY_EMOJI: &str = "🏃";
 const CHARISMA_EMOJI: &str = "✨";
-
-fn count_types_for_plugin(state: &GameState, plugin_id: PluginId) -> usize {
-    state
-        .invented_types_of_guy
-        .borrow()
-        .iter()
-        .filter(|(id, _)| *id == plugin_id)
-        .count()
-}
-
-pub fn print_plugins_table(state: &GameState) {
-    println!("\n┌───────────────────────────────────────────────────────────────┐");
-    println!("│                         🔌 Plugins 🔌                         │");
-    println!("├─────┬─────────────────────┬─────────┬─────────────────────────┤");
-    println!("│ ID  │ Name                │ Types   │ File                    │");
-    println!("├─────┼─────────────────────┼─────────┼─────────────────────────┤");
-
-    if state.plugin_descs.is_empty() {
-        println!("│                     📭 No plugins loaded                      │");
-    } else {
-        for (id, desc) in state.plugin_descs.iter() {
-            let type_count = count_types_for_plugin(state, *id);
-            let filename = desc
-                .path
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or("unknown.wasm");
-
-            println!(
-                "│ {:3} │ {:<19} │ {:^7} │ {:<23} │",
-                id,
-                truncate_string(&desc.name, 19),
-                type_count,
-                truncate_string(filename, 23)
-            );
-        }
-    }
-
-    println!("└─────┴─────────────────────┴─────────┴─────────────────────────┘");
-}
-
-fn truncate_string(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max_len - 3])
-    }
-}
 
 fn create_bar(value: u8) -> String {
     let bar_length = 20;
@@ -90,7 +42,7 @@ fn box_content(lines: &[String], width: usize) {
     println!("╰─{}─╯", "─".repeat(width));
 }
 
-fn print_guy_card(guy: &TypeOfGuy, plugin_name: &str) {
+fn print_guy_card(guy: &TypeOfGuy) {
     let wrapped_name = wrap_text(&guy.name, 50);
 
     let mut content = Vec::new();
@@ -98,7 +50,6 @@ fn print_guy_card(guy: &TypeOfGuy, plugin_name: &str) {
     for chunk in &wrapped_name[1..] {
         content.push(format!("   {}", chunk));
     }
-    content.push(format!("🔌 Plugin: {}", plugin_name));
     content.push(" ".to_string());
     content.push(format!(
         "{} Strength: {:2} {}",
@@ -133,16 +84,7 @@ pub fn print_guy_types(state: &GameState) {
 
     // Print builtin types
     for guy in state.builtin_types_of_guy.iter() {
-        print_guy_card(guy, "<builtin>");
-    }
-
-    // Print types from plugins
-    for (plugin_id, guy) in state.invented_types_of_guy.borrow().iter() {
-        let plugin_name = state
-            .plugin_descs
-            .get(&plugin_id)
-            .map_or("unknown plugin", |desc| desc.name.as_str());
-        print_guy_card(guy, plugin_name);
+        print_guy_card(guy);
     }
 }
 
@@ -170,7 +112,6 @@ pub fn print_menu() {
     println!("│           🎮 Menu 🎮           │");
     println!("├────────────────────────────────┤");
     println!("│  types   │ 👥 View guy types   │");
-    println!("│  plugins │ 🔌 View plugins     │");
     println!("│  fight   │ ⚔️ Start battle     │");
     println!("│  help    │ ❓ Show help        │");
     println!("│  quit    │ 🚪 Exit game        │");
