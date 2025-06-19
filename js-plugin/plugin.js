@@ -1,4 +1,4 @@
-import { inventEntirelyNewTypeOfGuy } from 'tl:guy-fighter/guy-fighter-host';
+import { inventEntirelyNewTypeOfGuy } from 'tl:guy-fighter/host';
 
 export function init() {
     inventEntirelyNewTypeOfGuy({

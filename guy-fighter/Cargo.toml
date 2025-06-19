@@ -9,4 +9,6 @@ clap = { version = "4.5.40", features = ["derive"] }
 rustyline = "16.0.0"
 unicode-width = "0.2.1"
 rand = "0.8"
-wasmtime-wasi = "33.0.0"
+
+[env]
+WASMTIME_DEBUG_BINDGEN = 1

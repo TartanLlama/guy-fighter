@@ -1,6 +1,6 @@
 package tl:guy-fighter;
 
-interface guy-fighter-host {
+interface host {
     record type-of-guy {
         name: string,
         strength: u8,
@@ -11,12 +11,8 @@ interface guy-fighter-host {
     invent-entirely-new-type-of-guy: func(guy-type: type-of-guy);
 }
 
-world guy-fighter {
-    export guy-fighter-host;
-}
-
-world guy-fighter-plugin {
-    import guy-fighter-host;
+world plugin {
+    import host;
     export init: func();
     export get-plugin-name: func() -> string;
 }
